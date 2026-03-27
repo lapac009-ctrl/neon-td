@@ -2,34 +2,36 @@
 <html lang="sr">
 <head>
     <meta charset="UTF-8">
-    <title>Brawler Siege: Pro Turret Edition</title>
+    <title>Brawler Siege: Tank & Split Upgrade</title>
     <style>
-        :root { --neon: #00f2ff; --gold: #ffcc00; --red: #ff0055; --bg: #020202; --glass: rgba(15, 15, 15, 0.9); }
+        :root { --neon: #00f2ff; --gold: #ffcc00; --red: #ff0055; --bg: #020202; --glass: rgba(15, 15, 15, 0.95); }
         body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         
-        .panel { background: var(--glass); backdrop-filter: blur(15px); border: 2px solid var(--neon); border-radius: 12px; padding: 15px; box-shadow: 0 0 20px rgba(0,242,255,0.15); }
+        .panel { background: var(--glass); backdrop-filter: blur(15px); border: 2px solid var(--neon); border-radius: 12px; padding: 15px; box-shadow: 0 0 20px rgba(0,242,255,0.2); }
         
-        #main-menu { position: absolute; inset: 20px; z-index: 1000; overflow-y: auto; text-align: center; }
-        .brawler-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin: 20px 0; }
-        .card { background: rgba(255,255,255,0.03); border: 1px solid #333; padding: 10px; border-radius: 8px; cursor: pointer; }
-        .card.equipped { border: 2px solid #0f0; box-shadow: 0 0 10px #0f0; }
-
-        /* HUD & Stats */
-        #game-stats { position: absolute; top: 15px; left: 15px; display: none; z-index: 100; }
+        #main-menu { position: absolute; inset: 20px; z-index: 1000; text-align: center; overflow-y: auto; }
+        
+        /* HUD */
+        #game-stats { position: absolute; top: 15px; left: 15px; display: none; z-index: 100; min-width: 150px; }
+        
+        /* NOVI UPGRADE PANEL */
         #upgrade-panel { 
             position: absolute; right: 20px; top: 50%; transform: translateY(-50%); 
-            width: 220px; display: none; z-index: 110; flex-direction: column; gap: 10px;
+            width: 260px; display: none; z-index: 110; flex-direction: column; gap: 8px;
         }
 
-        .stat-line { display: flex; justify-content: space-between; font-size: 0.9em; margin: 5px 0; border-bottom: 1px solid #333; padding-bottom: 2px; }
-        .val { color: var(--neon); font-weight: bold; }
+        .up-row { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 5px; margin-bottom: 5px; border: 1px dashed #444; }
+        .up-info { display: flex; flex-direction: column; }
+        .up-name { font-size: 0.75em; color: #aaa; text-transform: uppercase; }
+        .up-val { color: var(--neon); font-weight: bold; font-size: 1.1em; }
 
-        #hotbar { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; }
-        .slot { width: 75px; height: 90px; border: 2px solid #333; border-radius: 8px; cursor: pointer; background: black; text-align: center; font-size: 0.75em; }
+        #hotbar { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; }
+        .slot { width: 80px; height: 100px; border: 2px solid #333; border-radius: 8px; cursor: pointer; background: #000; text-align: center; font-size: 0.8em; }
         .slot.active { border-color: var(--neon); box-shadow: 0 0 15px var(--neon); }
+        .tank-btn { background: #556b2f; color: white; border: 2px solid #8b4513; width: 100px; font-weight: bold; cursor: pointer; border-radius: 8px; }
 
-        .btn { background: var(--neon); color: black; border: none; padding: 8px 15px; font-weight: bold; cursor: pointer; border-radius: 4px; width: 100%; margin-top: 5px; }
-        .btn:hover { background: white; }
+        .btn-sm { background: var(--neon); color: black; border: none; padding: 5px 10px; font-weight: bold; cursor: pointer; border-radius: 3px; font-size: 0.8em; }
+        .btn-sm:hover { background: white; }
 
         canvas { display: block; }
     </style>
@@ -37,30 +39,38 @@
 <body>
 
 <div id="main-menu" class="panel">
-    <h1 style="color: var(--neon); letter-spacing: 3px;">BRAWLER SIEGE PRO</h1>
-    <h2 style="color: var(--gold);">COINS: <span id="g-coins">0</span></h2>
-    <button class="btn" style="width: auto; padding: 15px 50px;" onclick="startGame()">START MISSION</button>
-    <div class="brawler-grid" id="grid"></div>
+    <h1 style="color: var(--neon); letter-spacing: 5px;">BRAWLER SIEGE: TANKS</h1>
+    <h2 style="color: var(--gold);">GLOBAL COINS: <span id="g-coins">0</span></h2>
+    <button onclick="startGame()" style="padding: 15px 60px; font-weight: bold; background: var(--neon); cursor: pointer; border-radius: 30px;">START BATTLE</button>
+    <div id="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 20px;"></div>
 </div>
 
 <div id="game-stats" class="panel">
-    <div style="color: #0f0;">💰 $<span id="m-val">400</span></div>
+    <div style="color: #0f0;">💵 $<span id="m-val">450</span></div>
     <div style="color: var(--red);">❤️ <span id="h-val">100</span></div>
     <div>🌊 WAVE <span id="w-val">1</span></div>
 </div>
 
 <div id="upgrade-panel" class="panel">
-    <h3 id="up-name" style="margin: 0; color: var(--gold);">BRAWLER</h3>
-    <hr style="border: 0; border-top: 1px solid #444;">
-    <div class="stat-line">LEVEL: <span class="val" id="st-lvl">1</span></div>
-    <div class="stat-line">JAČINA (DMG): <span class="val" id="st-dmg">10</span></div>
-    <div class="stat-line">BRZINA (FR): <span class="val" id="st-spd">1.0s</span></div>
-    <div class="stat-line">DOMET (RNG): <span class="val" id="st-rng">150</span></div>
-    <button class="btn" onclick="inGameUpgrade()">UPGRADE ($<span id="up-cost">100</span>)</button>
-    <button class="btn" style="background:#444; color:white;" onclick="closeUpgrade()">ZATVORI</button>
+    <h3 id="up-name" style="margin: 0; color: var(--gold); text-align: center;">UNIT</h3>
+    <div class="up-row">
+        <div class="up-info"><span class="up-name">Jačina (DMG)</span><span class="up-val" id="st-dmg">23</span></div>
+        <button class="btn-sm" onclick="improve('dmg')">+$50</button>
+    </div>
+    <div class="up-row">
+        <div class="up-info"><span class="up-name">Brzina (FR)</span><span class="up-val" id="st-spd">0.44s</span></div>
+        <button class="btn-sm" onclick="improve('spd')">+$60</button>
+    </div>
+    <div class="up-row">
+        <div class="up-info"><span class="up-name">Domet (RNG)</span><span class="up-val" id="st-rng">170</span></div>
+        <button class="btn-sm" onclick="improve('rng')">+$40</button>
+    </div>
+    <button class="btn-sm" style="background:#444; color:white; margin-top:10px;" onclick="closeUpgrade()">ZATVORI</button>
 </div>
 
-<div id="hotbar"></div>
+<div id="hotbar">
+    <button class="tank-btn" onclick="spawnTank()">SPAWN TANK<br>$250</button>
+</div>
 <canvas id="canvas"></canvas>
 
 <script>
@@ -68,170 +78,137 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
 let brawlersPool = [];
-for(let i=1; i<=50; i++) {
+for(let i=1; i<=20; i++) {
     brawlersPool.push({
         id: i, name: i==1 ? "RECRUIT" : "UNIT #"+i,
-        unlocked: i==1, cost: i*180,
-        dmg: 10+(i*7), r: 170+(i*3), 
-        fireRate: Math.max(10, 30 - (i/2)), // Brzina metkova
-        color: `hsl(${i*42}, 100%, 60%)`
+        unlocked: i==1, cost: i*200,
+        dmg: 23 + (i*5), r: 170 + (i*3), fr: 44, // 44 frames ~ 0.44s
+        color: `hsl(${i*50}, 100%, 60%)`
     });
 }
 
-let save = JSON.parse(localStorage.getItem('brawler_pro_v1')) || { coins: 300, brawlers: brawlersPool, equipped: [1] };
+let save = JSON.parse(localStorage.getItem('brw_siege_tank_v1')) || { coins: 500, brawlers: brawlersPool, equipped: [1] };
 let money, hp, wave, selected = null, placing = null;
-let towers = [], enemies = [];
+let towers = [], enemies = [], tanks = [];
 
 function sync() {
-    localStorage.setItem('brawler_pro_v1', JSON.stringify(save));
+    localStorage.setItem('brw_siege_tank_v1', JSON.stringify(save));
     document.getElementById('g-coins').innerText = Math.floor(save.coins);
-    renderMenu();
-}
-
-function renderMenu() {
     const grid = document.getElementById('grid'); grid.innerHTML = '';
     save.brawlers.forEach(b => {
-        const c = document.createElement('div');
-        c.className = `card ${!b.unlocked?'locked':''} ${save.equipped.includes(b.id)?'equipped':''}`;
-        c.innerHTML = `<b style="color:${b.color}">${b.name}</b><br>${!b.unlocked?'$'+b.cost:'READY'}`;
-        c.onclick = () => {
+        let div = document.createElement('div');
+        div.className = 'panel'; div.style.cursor = 'pointer';
+        div.style.borderColor = save.equipped.includes(b.id) ? '#0f0' : '#333';
+        div.innerHTML = `<b style="color:${b.color}">${b.name}</b><br>${b.unlocked?'READY':'$'+b.cost}`;
+        div.onclick = () => {
             if(!b.unlocked && save.coins >= b.cost) { save.coins -= b.cost; b.unlocked = true; sync(); }
-            else if(b.unlocked && !save.equipped.includes(b.id)) {
-                if(save.equipped.length >= 4) save.equipped.shift();
-                save.equipped.push(b.id); sync();
-            }
+            else if(b.unlocked && !save.equipped.includes(b.id)) { if(save.equipped.length < 4) save.equipped.push(b.id); sync(); }
         };
-        grid.appendChild(c);
+        grid.appendChild(div);
     });
 }
 
 function startGame() {
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('game-stats').style.display = 'block';
-    const hb = document.getElementById('hotbar'); hb.style.display = 'flex'; hb.innerHTML = '';
+    const hb = document.getElementById('hotbar'); hb.style.display = 'flex';
     save.equipped.forEach(id => {
         let b = save.brawlers.find(x => x.id === id);
-        hb.innerHTML += `<div class="slot" id="slot-${id}" onclick="placing=${id}; selectSlot(${id})">
-            <b style="color:${b.color}">${b.name}</b><br><span style="color:#0f0">$${b.id*90}</span></div>`;
+        let s = document.createElement('div'); s.className = 'slot';
+        s.id = 'slot-'+id; s.innerHTML = `<b style="color:${b.color}">${b.name}</b><br>$${b.id*100}`;
+        s.onclick = () => { placing = id; document.querySelectorAll('.slot').forEach(x=>x.classList.remove('active')); s.classList.add('active'); };
+        hb.appendChild(s);
     });
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    money = 450; hp = 100; wave = 1; towers = []; enemies = [];
-    updateUI(); loop();
+    money = 500; hp = 100; wave = 1; loop();
 }
 
-function selectSlot(id) {
-    document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
-    document.getElementById('slot-'+id).classList.add('active');
+function spawnTank() {
+    if(money >= 250) {
+        money -= 250;
+        tanks.push({ x: 0, y: canvas.height/2 + 20, s: 2, hp: 500, cd: 0 });
+        updateUI();
+    }
 }
 
 canvas.onclick = (e) => {
     let t = towers.find(t => Math.hypot(t.x-e.clientX, t.y-e.clientY) < 30);
-    if(t) {
-        selected = t;
-        document.getElementById('upgrade-panel').style.display = 'flex';
-        updateStatsUI();
-        return;
-    }
+    if(t) { selected = t; document.getElementById('upgrade-panel').style.display = 'flex'; updateStatsUI(); return; }
     if(placing) {
         let b = save.brawlers.find(x => x.id === placing);
-        let cost = b.id * 90;
-        if(money >= cost) {
-            towers.push({ ...b, x: e.clientX, y: e.clientY, lvl: 1, cd: 0, angle: 0 });
-            money -= cost; updateUI();
+        if(money >= b.id*100) {
+            towers.push({ ...b, x: e.clientX, y: e.clientY, lvl_dmg:1, lvl_spd:1, lvl_rng:1, cd:0, angle:0 });
+            money -= b.id*100; updateUI();
         }
     }
     closeUpgrade();
 };
 
-function updateStatsUI() {
-    if(!selected) return;
-    document.getElementById('up-name').innerText = selected.name;
-    document.getElementById('st-lvl').innerText = selected.lvl;
-    document.getElementById('st-dmg').innerText = Math.floor(selected.dmg);
-    document.getElementById('st-spd').innerText = (selected.fireRate / 60).toFixed(2) + "s";
-    document.getElementById('st-rng').innerText = Math.floor(selected.r);
-    document.getElementById('up-cost').innerText = selected.lvl * 140;
+function improve(stat) {
+    let cost = 50;
+    if(stat === 'dmg') { cost = selected.lvl_dmg * 50; if(money >= cost) { money -= cost; selected.dmg *= 1.3; selected.lvl_dmg++; } }
+    if(stat === 'spd') { cost = selected.lvl_spd * 60; if(money >= cost) { money -= cost; selected.fr = Math.max(5, selected.fr*0.8); selected.lvl_spd++; } }
+    if(stat === 'rng') { cost = selected.lvl_rng * 40; if(money >= cost) { money -= cost; selected.r += 20; selected.lvl_rng++; } }
+    updateUI(); updateStatsUI();
 }
 
-function inGameUpgrade() {
-    let cost = selected.lvl * 140;
-    if(money >= cost) {
-        money -= cost;
-        selected.lvl++;
-        selected.dmg *= 1.4;
-        selected.r += 15;
-        selected.fireRate = Math.max(5, selected.fireRate * 0.9); // Puca brže
-        updateUI(); updateStatsUI();
-    }
+function updateStatsUI() {
+    document.getElementById('up-name').innerText = selected.name;
+    document.getElementById('st-dmg').innerText = Math.floor(selected.dmg);
+    document.getElementById('st-spd').innerText = (selected.fr/100).toFixed(2) + "s";
+    document.getElementById('st-rng').innerText = Math.floor(selected.r);
 }
 
 function closeUpgrade() { document.getElementById('upgrade-panel').style.display = 'none'; selected = null; }
-function updateUI() {
-    document.getElementById('m-val').innerText = money;
-    document.getElementById('h-val').innerText = hp;
-    document.getElementById('w-val').innerText = wave;
-}
+function updateUI() { document.getElementById('m-val').innerText = money; document.getElementById('h-val').innerText = hp; document.getElementById('w-val').innerText = wave; }
 
 setInterval(() => {
     if(document.getElementById('main-menu').style.display !== 'none') return;
-    for(let i=0; i<3+wave; i++) {
-        setTimeout(() => enemies.push({ 
-            x: 0, y: canvas.height/2, hp: 40+(wave*80), s: 1.2+(wave*0.07), max: 40+(wave*80) 
-        }), i*900);
-    }
+    for(let i=0; i<4+wave; i++) setTimeout(() => enemies.push({ x:0, y:canvas.height/2, hp:50+(wave*90), s:1.3+(wave*0.05), max:50+(wave*90) }), i*800);
     wave++; updateUI();
 }, 11000);
 
 function loop() {
-    ctx.fillStyle = "rgba(0,0,0,0.15)"; ctx.fillRect(0,0,canvas.width, canvas.height);
-    ctx.strokeStyle = "#111"; ctx.lineWidth = 80; ctx.beginPath();
-    ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2); ctx.stroke();
+    ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(0,0,canvas.width, canvas.height);
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 80; ctx.beginPath(); ctx.moveTo(0, canvas.height/2); ctx.lineTo(canvas.width, canvas.height/2); ctx.stroke();
 
     enemies.forEach((en, i) => {
         en.x += en.s;
         if(en.x > canvas.width) { hp -= 10; enemies.splice(i, 1); updateUI(); return; }
         ctx.fillStyle = "#ff0055"; ctx.fillRect(en.x-15, en.y-15, 30, 30);
-        ctx.fillStyle = "#333"; ctx.fillRect(en.x-15, en.y-25, 30, 4);
         ctx.fillStyle = "#0f0"; ctx.fillRect(en.x-15, en.y-25, (en.hp/en.max)*30, 4);
     });
 
+    tanks.forEach((tk, i) => {
+        tk.x += tk.s;
+        ctx.fillStyle = "#556b2f"; ctx.fillRect(tk.x-25, tk.y-15, 50, 30);
+        ctx.fillStyle = "#000"; ctx.fillRect(tk.x, tk.y-5, 30, 10);
+        let target = enemies.find(e => e.x > tk.x && e.x < tk.x + 300);
+        if(target && tk.cd <= 0) {
+            target.hp -= 100; tk.cd = 50;
+            ctx.strokeStyle = "orange"; ctx.beginPath(); ctx.moveTo(tk.x+25, tk.y); ctx.lineTo(target.x, target.y); ctx.stroke();
+        }
+        if(tk.cd > 0) tk.cd--;
+        if(tk.x > canvas.width) tanks.splice(i, 1);
+    });
+
     towers.forEach(t => {
-        // Crtanje postolja
-        ctx.strokeStyle = t.color; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(t.x, t.y, 22, 0, Math.PI*2); ctx.stroke();
-        
-        // Pronalaženje mete
+        ctx.strokeStyle = t.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(t.x, t.y, 22, 0, Math.PI*2); ctx.stroke();
         let target = enemies.find(e => Math.hypot(e.x-t.x, e.y-t.y) < t.r);
-        
         if(target) {
-            // Rotacija puške prema meti
-            t.angle = Math.atan2(target.y - t.y, target.x - t.x);
-            
+            t.angle = Math.atan2(target.y-t.y, target.x-t.x);
             if(t.cd <= 0) {
-                ctx.strokeStyle = "white"; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(target.x, target.y); ctx.stroke();
-                target.hp -= t.dmg; t.cd = t.fireRate;
-                if(target.hp <= 0) { enemies = enemies.filter(e => e !== target); money += 20; save.coins += 2; sync(); }
+                ctx.strokeStyle = "white"; ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(target.x, target.y); ctx.stroke();
+                target.hp -= t.dmg; t.cd = t.fr;
+                if(target.hp <= 0) { enemies = enemies.filter(e=>e!==target); money += 20; save.coins += 2; sync(); }
             }
         }
-        
-        // Crtanje PUŠKE (Cevi)
-        ctx.save();
-        ctx.translate(t.x, t.y);
-        ctx.rotate(t.angle);
-        ctx.fillStyle = t.color;
-        ctx.fillRect(5, -6, 25 + (t.lvl*2), 12); // Cev puške
-        ctx.restore();
-
-        if(selected === t) {
-            ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.beginPath();
-            ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.stroke();
-        }
+        ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.angle); ctx.fillStyle = t.color; ctx.fillRect(5, -6, 25, 12); ctx.restore();
         if(t.cd > 0) t.cd--;
     });
 
     if(hp > 0) requestAnimationFrame(loop);
-    else { save.coins += wave * 40; sync(); alert("GAME OVER!"); location.reload(); }
+    else { save.coins += wave*50; sync(); alert("GAME OVER!"); location.reload(); }
 }
 sync();
 </script>
