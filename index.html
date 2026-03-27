@@ -2,59 +2,45 @@
 <html lang="sr">
 <head>
     <meta charset="UTF-8">
-    <title>Neon Tower Defense</title>
+    <title>Neon TD Pro</title>
     <style>
-        body {
-            margin: 0;
-            background: #0a0a0a;
-            color: #00f2ff;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow: hidden;
-        }
-        /* Glassmorphism UI */
+        body { margin: 0; background: #050505; color: #00f2ff; font-family: 'Arial', sans-serif; display: flex; overflow: hidden; }
         #ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 242, 255, 0.3);
-            border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
+            position: absolute; top: 20px; left: 20px; padding: 20px;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(10px);
+            border: 1px solid #00f2ff; border-radius: 15px; width: 220px;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2); z-index: 10;
         }
-        canvas {
-            border: 2px solid #1a1a1a;
-            background: #000;
-            cursor: crosshair;
-            box-shadow: 0 0 50px rgba(0, 0, 0, 1);
+        .stats { font-size: 1.2em; margin-bottom: 10px; text-shadow: 0 0 5px #00f2ff; }
+        .shop-item {
+            background: rgba(255,255,255,0.05); border: 1px solid #444;
+            padding: 10px; margin-bottom: 5px; cursor: pointer; border-radius: 8px;
+            transition: 0.2s; font-size: 0.9em;
         }
-        h2 { margin: 0; text-shadow: 0 0 10px #00f2ff; }
-        .stats { margin-top: 10px; font-weight: bold; }
-        .btn {
-            background: rgba(0, 242, 255, 0.2);
-            border: 1px solid #00f2ff;
-            color: #00f2ff;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: 0.3s;
+        .shop-item:hover { background: rgba(0, 242, 255, 0.2); border-color: #00f2ff; }
+        .selected { border-color: #ff00ff !important; background: rgba(255, 0, 255, 0.1); }
+        canvas { background: #000; }
+        #upgrade-menu {
+            position: absolute; display: none; background: rgba(0,0,0,0.8);
+            padding: 10px; border: 1px solid #fff; border-radius: 10px; color: #fff;
         }
-        .btn:hover { background: #00f2ff; color: #000; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <h2>NEON TD</h2>
-    <div class="stats">Novac: $<span id="money">200</span></div>
-    <div class="stats">HP: <span id="hp">10</span></div>
-    <button class="btn" onclick="buyTower()">Kupi Kulu ($50)</button>
-    <p style="font-size: 0.8em; opacity: 0.6;">Klikni na mapu da postaviš</p>
+    <div class="stats">💰 $<span id="money">300</span></div>
+    <div class="stats">❤️ HP: <span id="hp">20</span></div>
+    <div class="stats">🌊 Talas: <span id="wave">1</span></div>
+    <hr border="0.5px solid #222">
+    <div class="shop-item" onclick="selectTower('basic', 50, '#00f2ff')" id="btn-basic">Plava Kula (Brza) - $50</div>
+    <div class="shop-item" onclick="selectTower('heavy', 120, '#ff0055')" id="btn-heavy">Crvena Kula (Jaka) - $120</div>
+    <div class="shop-item" onclick="selectTower('sniper', 250, '#ffcc00')" id="btn-sniper">Zlatni Sniper - $250</div>
+    <p style="font-size: 0.7em; color: #888;">Klikni na kulu za UPGRADE</p>
+</div>
+
+<div id="upgrade-menu">
+    <button onclick="upgradeSelected()">Upgrade ($<span id="up-cost">0</span>)</button>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -62,161 +48,174 @@
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let money = 200;
-let hp = 10;
+let money = 300;
+let hp = 20;
+let wave = 1;
 let towers = [];
 let enemies = [];
 let projectiles = [];
-let placementMode = false;
+let selectedType = null;
+let selectedTowerObj = null;
 
-// Putanja neprijatelja
-const path = [
-    {x: 0, y: 300},
-    {x: 400, y: 300},
-    {x: 400, y: 600},
-    {x: 800, y: 600},
-    {x: 800, y: 100},
-    {x: canvas.width, y: 100}
-];
+const path = [{x:0,y:400}, {x:500,y:400}, {x:500,y:150}, {x:900,y:150}, {x:900,y:600}, {x:canvas.width,y:600}];
 
 class Enemy {
-    constructor() {
-        this.x = path[0].x;
-        this.y = path[0].y;
-        this.speed = 2;
-        this.health = 100;
+    constructor(level) {
+        this.x = path[0].x; this.y = path[0].y;
+        this.speed = 1.5 + (level * 0.1);
+        this.maxHp = 50 + (level * 40);
+        this.hp = this.maxHp;
         this.targetNode = 1;
+        this.reward = 15 + level;
     }
     update() {
         let node = path[this.targetNode];
-        let dx = node.x - this.x;
-        let dy = node.y - this.y;
+        let dx = node.x - this.x; let dy = node.y - this.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
-        
         if(dist < 5) {
             this.targetNode++;
-            if(this.targetNode >= path.length) {
-                hp--;
-                this.health = 0; // "Uništi" ga kad dođe do kraja
-                return;
-            }
+            if(this.targetNode >= path.length) { hp--; this.hp = 0; return; }
         }
         this.x += (dx/dist) * this.speed;
         this.y += (dy/dist) * this.speed;
     }
     draw() {
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = "#ff0055";
         ctx.fillStyle = "#ff0055";
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y - 10);
-        ctx.lineTo(this.x + 10, this.y + 10);
-        ctx.lineTo(this.x - 10, this.y + 10);
-        ctx.fill();
+        ctx.shadowBlur = 10; ctx.shadowColor = "#ff0055";
+        ctx.fillRect(this.x-10, this.y-10, 20, 20);
+        // HP Bar
+        ctx.fillStyle = "#333"; ctx.fillRect(this.x-15, this.y-20, 30, 5);
+        ctx.fillStyle = "#00ff00"; ctx.fillRect(this.x-15, this.y-20, (this.hp/this.maxHp)*30, 5);
         ctx.shadowBlur = 0;
     }
 }
 
 class Tower {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.range = 150;
+    constructor(x, y, type, color) {
+        this.x = x; this.y = y; this.type = type; this.color = color;
+        this.level = 1;
+        this.range = type === 'sniper' ? 400 : 180;
+        this.dmg = type === 'heavy' ? 50 : 20;
         this.cooldown = 0;
+        this.maxCooldown = type === 'basic' ? 20 : 60;
+    }
+    upgrade() {
+        let cost = this.level * 100;
+        if(money >= cost) {
+            money -= cost;
+            this.level++;
+            this.range += 30;
+            this.dmg *= 1.5;
+            return true;
+        }
+        return false;
     }
     draw() {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "#00f2ff";
-        ctx.strokeStyle = "#00f2ff";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 20, 0, Math.PI*2);
-        ctx.stroke();
-        
-        // Glass fill
-        ctx.fillStyle = "rgba(0, 242, 255, 0.1)";
-        ctx.fill();
+        ctx.strokeStyle = this.color; ctx.lineWidth = 4;
+        ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, 25, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = "white"; ctx.fillText("Lvl " + this.level, this.x-12, this.y+5);
         ctx.shadowBlur = 0;
-    }
-    update() {
-        if(this.cooldown > 0) this.cooldown--;
-        else {
-            let target = enemies.find(e => Math.hypot(e.x - this.x, e.y - this.y) < this.range);
-            if(target) {
-                projectiles.push(new Projectile(this.x, this.y, target));
-                this.cooldown = 30;
-            }
-        }
     }
 }
 
 class Projectile {
-    constructor(x, y, target) {
-        this.x = x; this.y = y; this.target = target; this.speed = 7;
+    constructor(x, y, target, dmg, color) {
+        this.x = x; this.y = y; this.target = target; this.dmg = dmg; this.color = color; this.speed = 10;
     }
     update() {
-        let dx = this.target.x - this.x;
-        let dy = this.target.y - this.y;
+        let dx = this.target.x - this.x; let dy = this.target.y - this.y;
         let dist = Math.sqrt(dx*dx + dy*dy);
-        if(dist < 5) {
-            this.target.health -= 20;
-            this.x = -100; // Uništi metak
-        }
-        this.x += (dx/dist) * this.speed;
-        this.y += (dy/dist) * this.speed;
+        if(dist < 10) { this.target.hp -= this.dmg; this.x = -1000; return; }
+        this.x += (dx/dist) * this.speed; this.y += (dy/dist) * this.speed;
     }
     draw() {
-        ctx.fillStyle = "#fff";
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
-        ctx.fill();
+        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 5, 0, Math.PI*2); ctx.fill();
     }
 }
 
-function buyTower() {
-    if(money >= 50) placementMode = true;
+function selectTower(type, cost, color) {
+    selectedType = {type, cost, color};
+    document.querySelectorAll('.shop-item').forEach(el => el.classList.remove('selected'));
+    document.getElementById('btn-'+type).classList.add('selected');
 }
 
 canvas.onclick = (e) => {
-    if(placementMode) {
-        towers.push(new Tower(e.clientX, e.clientY));
-        money -= 50;
-        placementMode = false;
-        document.getElementById('money').innerText = money;
+    // Provera klika na kulu za upgrade
+    let clickedTower = towers.find(t => Math.hypot(t.x - e.clientX, t.y - e.clientY) < 30);
+    if(clickedTower) {
+        selectedTowerObj = clickedTower;
+        let menu = document.getElementById('upgrade-menu');
+        menu.style.display = "block";
+        menu.style.left = e.clientX + "px"; menu.style.top = e.clientY + "px";
+        document.getElementById('up-cost').innerText = clickedTower.level * 100;
+        return;
     }
+
+    if(selectedType && money >= selectedType.cost) {
+        towers.push(new Tower(e.clientX, e.clientY, selectedType.type, selectedType.color));
+        money -= selectedType.cost;
+        updateUI();
+    }
+    document.getElementById('upgrade-menu').style.display = "none";
 };
 
-function gameLoop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Crtaj putanju
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 40;
-    ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    path.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.stroke();
-
-    if(Math.random() < 0.02) enemies.push(new Enemy());
-
-    enemies = enemies.filter(e => e.health > 0);
-    enemies.forEach(e => { e.update(); e.draw(); });
-    
-    towers.forEach(t => { t.update(); t.draw(); });
-    
-    projectiles = projectiles.filter(p => p.x > 0);
-    projectiles.forEach(p => { p.update(); p.draw(); });
-
-    document.getElementById('hp').innerText = hp;
-    if(hp <= 0) alert("GAME OVER! Osveži stranicu.");
-    else requestAnimationFrame(gameLoop);
+function upgradeSelected() {
+    if(selectedTowerObj && selectedTowerObj.upgrade()) {
+        updateUI();
+        document.getElementById('upgrade-menu').style.display = "none";
+    } else { alert("Nemaš dovoljno para!"); }
 }
 
-gameLoop();
+function updateUI() {
+    document.getElementById('money').innerText = money;
+    document.getElementById('hp').innerText = hp;
+    document.getElementById('wave').innerText = wave;
+}
+
+// Spawn sistem
+setInterval(() => {
+    if(enemies.length === 0) { wave++; updateUI(); }
+    for(let i=0; i < 5 + wave; i++) {
+        setTimeout(() => enemies.push(new Enemy(wave)), i * 600);
+    }
+}, 10000);
+
+function animate() {
+    ctx.fillStyle = "black"; ctx.fillRect(0,0,canvas.width, canvas.height);
+    
+    // Putanja
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 50; ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y); path.forEach(p => ctx.lineTo(p.x, p.y)); ctx.stroke();
+
+    enemies.forEach((e, i) => {
+        e.update(); e.draw();
+        if(e.hp <= 0) { money += e.reward; enemies.splice(i, 1); updateUI(); }
+    });
+
+    towers.forEach(t => {
+        t.draw();
+        if(t.cooldown > 0) t.cooldown--;
+        else {
+            let target = enemies.find(e => Math.hypot(e.x - t.x, e.y - t.y) < t.range);
+            if(target) { projectiles.push(new Projectile(t.x, t.y, target, t.dmg, t.color)); t.cooldown = t.maxCooldown; }
+        }
+    });
+
+    projectiles.forEach((p, i) => {
+        p.update(); p.draw();
+        if(p.x < 0) projectiles.splice(i, 1);
+    });
+
+    if(hp > 0) requestAnimationFrame(animate);
+    else { ctx.fillStyle="white"; ctx.font="50px Arial"; ctx.fillText("GAME OVER", canvas.width/2-150, canvas.height/2); }
+}
+
+updateUI();
+animate();
 </script>
 </body>
 </html>
